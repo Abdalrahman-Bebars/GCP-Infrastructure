@@ -114,14 +114,162 @@ gcloud compute instance-groups managed delete <group-name> --zone=<zone> --quiet
 
 - ✅ Private GKE cluster with private nodes  
 - ✅ Least privilege IAM configuration  
-- ✅ Separate subnets for management and workloads  
-- ✅ Infrastructure as Code (IaC) via Terraform  
-- ✅ Modular and clean file structure  
-- ✅ Kubernetes Ingress for public exposure (no separate LB.tf)
+## GCP Infrastructure (Terraform + Private GKE)
+
+This repository provisions a GCP environment using Terraform and provides Kubernetes manifests for a sample workload. The setup focuses on a secure, private GKE cluster with a separate management subnet and a management VM.
+
+## Quick summary
+
+- Private GKE cluster (private nodes, private endpoint configuration in place)
+- Custom VPC with management and restricted subnets
+- Management VM (private) to operate the cluster and access resources
+- Artifact Registry for private container images
+- IAM service accounts with least-privilege role bindings
+- Kubernetes manifests to deploy a sample app and Redis
+
+## Prerequisites
+
+- Terraform >= 1.7.0
+- gcloud SDK (authenticated with a user or service account that can create project resources)
+- kubectl (for interacting with the cluster)
+- A GCP project and a service account key (optional: `terraform-key.json`) if you don't use ADC or Cloud Shell
+
+## Repository layout
+
+```
+.
+├── K8s/                         # Kubernetes manifests to deploy sample app + redis
+├── gke.tf                       # GKE cluster + node pool + firewall rules
+├── Network.tf                   # VPC, subnets, router, NAT and firewall rules
+├── management_vm.tf             # Private management VM and associated firewall
+├── iam.tf                       # Service accounts and IAM bindings
+├── provider.tf                  # Terraform provider and required APIs
+├── variables.tf                 # Terraform variables
+├── terraform.tfvars             # Environment-specific variable values
+├── terraform.tfstate*           # Terraform state files (sensitive; do not commit keys)
+└── README.md                    # This file
+```
+
+## How to deploy (recommended minimal steps)
+
+1. Authenticate with GCP (local / management VM)
+
+```bash
+gcloud auth login
+gcloud auth application-default login
+# or export GOOGLE_APPLICATION_CREDENTIALS=/path/to/terraform-key.json
+```
+
+2. Clone this repository (local or on the management VM)
+
+Clone locally (to inspect files or run terraform from your machine):
+
+```bash
+git clone https://github.com/Abdalrahman-Bebars/GCP-Infrastructure.git
+cd GCP-Infrastructure
+```
+
+Or clone inside the management VM (recommended for cluster operations and to keep credentials inside the VPC):
+
+```bash
+# From your workstation, SSH into the management VM through IAP (management VM is private)
+gcloud compute ssh ${MANAGEMENT_VM_NAME:-management-vm} \
+	--project ${PROJECT_ID} --zone ${ZONE:-us-central1-a} --tunnel-through-iap
+
+# On the management VM
+git clone https://github.com/Abdalrahman-Bebars/GCP-Infrastructure.git
+cd GCP-Infrastructure
+```
+
+3. Initialize Terraform
+
+```bash
+terraform init
+```
+
+4. Validate and plan
+
+```bash
+terraform validate
+terraform plan -out=tfplan
+```
+
+5. Apply
+
+```bash
+terraform apply tfplan
+```
+
+6. Configure kubectl to use the new GKE cluster (from the management VM)
+
+Because this setup uses a private GKE cluster, the recommended and secure way to obtain cluster credentials is from the private management VM inside the VPC (the VM has the required service account and network access). Example flow:
+
+```bash
+# From your workstation: SSH into the management VM through IAP
+gcloud compute ssh ${MANAGEMENT_VM_NAME:-management-vm} \
+	--project ${PROJECT_ID} --zone ${ZONE:-us-central1-a} --tunnel-through-iap
+
+# On the management VM (once connected), run:
+gcloud container clusters get-credentials private-gke-cluster \
+	--region ${REGION:-us-central1} --project ${PROJECT_ID}
+
+# Confirm kubectl context and nodes
+kubectl get nodes
+```
+
+7. Deploy the sample application (from the management VM or any machine with kubectl context configured)
+
+```bash
+kubectl apply -f K8s/
+```
+
+## Notes about variables and configuration
+
+- Primary configuration lives in `variables.tf` and values in `terraform.tfvars`.
+- Key variables: `project_id`, `region`, `zone`, `management_subnet_cidr`, `restricted_subnet_cidr`, `gke_node_count`, `admin_user_email`, `admin_public_ip`.
+- Keep secrets and service account keys (like `terraform-key.json`) out of version control.
+
+## Kubernetes manifests
+
+- `K8s/namespace.yaml` — creates `production` namespace used by the manifests.
+- `K8s/configmap.yaml` — runtime configuration for the app.
+- `K8s/codemaster-deployment.yaml` — app deployment + service.
+- `K8s/redis-deployment.yaml` — Redis deployment + service.
+- `K8s/ingress.yaml` — Ingress to expose the app (GCE ingress annotations present).
+
+Apply them with:
+
+```bash
+kubectl apply -f K8s/
+```
+
+## Security & state management
+
+- Terraform state files (`terraform.tfstate`, backups) contain sensitive information. Do not commit them to public repositories.
+- If you plan to collaborate, configure a remote backend (GCS) and enable state locking.
+- `terraform-key.json` (service account key) should be stored securely (or use Workload Identity / ADC instead).
+
+## Destroying resources
+
+When you no longer need the resources, run:
+
+```bash
+terraform destroy
+```
+
+This will remove all GCP resources created by the configuration. If there are residual compute instance groups from a partially deleted GKE cluster, you may need to manually remove them via `gcloud`.
+
+## Next steps / Improvements (optional)
+
+- Break Terraform into modules for network, gke, iam, vm to improve reuse.
+- Add CI that runs `terraform validate` and `fmt` on changes.
+- Use a remote backend (GCS) and enable encryption + IAM to manage Terraform state securely.
+- Add automated tests (k8s conformance smoke tests) after deployment.
+
+## Contact
+
+Maintainer: Abdalrahman Bebars
 
 ---
 
-## 👨‍💻 Author
-**Abdalrahman Bebars**  
-Computer and Systems Engineer | GCP & Kubernetes Enthusiast  
-🏆 *Winner of DELL’s “Envision the Future” competition (MENA Region)*  
+*I reviewed the Terraform files and the K8s manifests in this repo and drafted this README to reflect the current configuration and deployment steps.*
