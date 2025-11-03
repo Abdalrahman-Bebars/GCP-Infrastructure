@@ -1,0 +1,60 @@
+# =========================
+# Terraform
+# =========================
+# Ignore any .terraform directories (recursively)
+**/.terraform/
+# Keep lockfile ignored
+.terraform.lock.hcl
+
+# Terraform state
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Terraform variable files (may contain secrets)
+*.tfvars
+*.tfvars.*
+override.tf
+override.tf.json
+
+# Crash logs
+crash.log
+*.crash
+
+# =========================
+# Credentials & Keys
+# =========================
+*.pem
+*.pub
+*.key
+*.crt
+*.pfx
+*.cer
+*.der
+
+# Terraform client/misc
+.terraformrc
+terraform.rc
+.terraform.d/
+
+# Custom credentials/config
+conf
+creds
+*.env
+.env.*
+
+# =========================
+# OS / Editor junk
+# =========================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.bak
+*.tmp
+*.
+*.json
+
+# VSCode / JetBrains
+.vscode/
+.idea/

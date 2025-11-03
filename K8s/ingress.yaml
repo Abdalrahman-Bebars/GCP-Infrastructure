@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: codemaster-ingress
+  namespace: production
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: "gke-ingress-ip"
+    # Uncomment if using SSL:
+    # ingress.gcp.kubernetes.io/pre-shared-cert: "codemaster-ssl-cert"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: codemaster-app
+            port:
+              number: 80
