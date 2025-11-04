@@ -6,8 +6,11 @@
 
 A production-ready Google Cloud Platform infrastructure provisioned with Terraform, featuring a **private GKE cluster**, secure networking, and automated Kubernetes deployments.
 
-![alt text](image.png)
+## Architecture Diagram
 
+<p align="center">
+  <img src="gcp_architecture_diagram.svg" alt="GCP Infrastructure Architecture" width="100%">
+</p>
 ## 📋 Table of Contents
 
 - [Overview](#overview)
